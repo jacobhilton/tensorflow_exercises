@@ -41,12 +41,16 @@ def dense_fnn(inputs, hidden_layer_sizes):
         prev_layer_size = layer_size
     return logits
 
-def train(inputs, logits, x_train_and_cv, y_train_and_cv, temperature, mini_batch_size=1000, cross_validation_set_size=10000, epochs=100):
+def train(inputs, logits, x_train_and_cv, y_train_and_cv, temperature, mini_batch_size=1000, cross_validation_set_size=10000, epochs=50):
     learning_rate = temperature * mini_batch_size
-    x_train = x_train_and_cv[:-cross_validation_set_size]
-    y_train = y_train_and_cv[:-cross_validation_set_size]
-    x_cv = x_train_and_cv[-cross_validation_set_size:]
-    y_cv = y_train_and_cv[-cross_validation_set_size:]
+    if cross_validation_set_size == 0:
+        x_train = x_train_and_cv
+        y_train = y_train_and_cv
+    else:
+        x_train = x_train_and_cv[:-cross_validation_set_size]
+        y_train = y_train_and_cv[:-cross_validation_set_size]
+        x_cv = x_train_and_cv[-cross_validation_set_size:]
+        y_cv = y_train_and_cv[-cross_validation_set_size:]
     labels = tf.placeholder(tf.float32, shape=(None, 10))
     loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=labels, logits=logits))
     accuracy = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(labels, axis=1), tf.argmax(logits, axis=1)), dtype=tf.float32))
@@ -68,7 +72,7 @@ def optimize_temperature(inputs, logits, x_train_and_cv, y_train_and_cv):
     temperatures=[0.1, 0.05, 0.02, 0.01, 0.005, 0.002, 0.001, 0.0005, 0.0002, 0.0001, 0.00005, 0.00002, 0.00001, 0.000005, 0.000002, 0.000001, 0.0000005, 0.0000002, 0.0000001]
     def accuracy_score_of_temperature(temperature):
         print("Training with temperature {0}.".format(temperature))
-        _, accuracy_score = train(inputs, logits, x_train_and_cv, y_train_and_cv, temperature, epochs=20)
+        _, accuracy_score = train(inputs, logits, x_train_and_cv, y_train_and_cv, temperature, epochs=25)
         return accuracy_score
     return max(temperatures, key=accuracy_score_of_temperature)
 
