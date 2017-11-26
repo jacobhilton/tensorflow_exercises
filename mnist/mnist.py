@@ -1,4 +1,5 @@
 import tensorflow as tf
+import random
 
 def image_to_vector(image):
     return [pixel for row in image for pixel in row]
@@ -40,21 +41,45 @@ def dense_fnn(inputs, hidden_layer_sizes):
         prev_layer_size = layer_size
     return logits
 
-def train(hidden_layer_sizes=[], temperature=0.0001, batch_size=100, cross_validation_set_size=10000):
-    learning_rate = temperature * batch_size
-    training_set_size = 60000 - cross_validation_set_size
-    inputs = tf.placeholder(tf.float32, shape=(None, 28 * 28))
-    logits = dense_fnn(inputs, hidden_layer_sizes)
+def train(inputs, logits, x_train_and_cv, y_train_and_cv, temperature, mini_batch_size=1000, cross_validation_set_size=10000, epochs=100):
+    learning_rate = temperature * mini_batch_size
+    x_train = x_train_and_cv[:-cross_validation_set_size]
+    y_train = y_train_and_cv[:-cross_validation_set_size]
+    x_cv = x_train_and_cv[-cross_validation_set_size:]
+    y_cv = y_train_and_cv[-cross_validation_set_size:]
     labels = tf.placeholder(tf.float32, shape=(None, 10))
     loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=labels, logits=logits))
     accuracy = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(labels, axis=1), tf.argmax(logits, axis=1)), dtype=tf.float32))
     training_step = tf.train.GradientDescentOptimizer(learning_rate).minimize(loss)
     sess = tf.Session()
     sess.run(tf.global_variables_initializer())
-    for i in range(0, training_set_size, batch_size):
-        x_train = read_image_vectors("train-images-idx3-ubyte", number=batch_size, start=i)
-        y_train = read_label_vectors("train-labels-idx1-ubyte", number=batch_size, start=i)
-        sess.run(training_step, {inputs: x_train, labels: y_train})
-    x_cv = read_image_vectors("train-images-idx3-ubyte", number=cross_validation_set_size, start=(60000 - cross_validation_set_size))
-    y_cv = read_label_vectors("train-labels-idx1-ubyte", number=cross_validation_set_size, start=(60000 - cross_validation_set_size))
-    return sess.run(accuracy, {inputs: x_cv, labels: y_cv})
+    train_data = list(zip(x_train, y_train))
+    for epoch in range(epochs):
+        random.shuffle(train_data)
+        x_train, y_train = zip(*train_data)
+        for mini_batch_start in range(0, len(x_train), mini_batch_size):
+            sess.run(training_step, {inputs: x_train[mini_batch_start:mini_batch_start + mini_batch_size], labels: y_train[mini_batch_start:mini_batch_start + mini_batch_size]})
+        if cross_validation_set_size > 0:
+            accuracy_score = sess.run(accuracy, {inputs: x_cv, labels: y_cv})
+            print("Cross-validation set accuracy after {0} epoch(s): {1}".format(epoch + 1, accuracy_score))
+    return (lambda x_test, y_test : sess.run(accuracy, {inputs: x_test, labels: y_test})), accuracy_score
+
+def optimize_temperature(inputs, logits, x_train_and_cv, y_train_and_cv):
+    temperatures=[0.1, 0.05, 0.02, 0.01, 0.005, 0.002, 0.001, 0.0005, 0.0002, 0.0001, 0.00005, 0.00002, 0.00001, 0.000005, 0.000002, 0.000001, 0.0000005, 0.0000002, 0.0000001]
+    def accuracy_score_of_temperature(temperature):
+        print("Training with temperature {0}.".format(temperature))
+        _, accuracy_score = train(inputs, logits, x_train_and_cv, y_train_and_cv, temperature, epochs=20)
+        return accuracy_score
+    return max(temperatures, key=accuracy_score_of_temperature)
+
+inputs = tf.placeholder(tf.float32, shape=(None, 28 * 28))
+logits = dense_fnn(inputs, hidden_layer_sizes=[100])
+x_train_and_cv = read_image_vectors("train-images-idx3-ubyte")
+y_train_and_cv = read_label_vectors("train-labels-idx1-ubyte")
+temperature = optimize_temperature(inputs, logits, x_train_and_cv, y_train_and_cv)
+print("Optimal temperature found: {0}.".format(temperature))
+accuracy_evaluator, _ = train(inputs, logits, x_train_and_cv, y_train_and_cv, temperature, cross_validation_set_size=0)
+x_test = read_image_vectors("t10k-images-idx3-ubyte")
+y_test = read_label_vectors("t10k-labels-idx1-ubyte")
+test_accuracy_score = accuracy_evaluator(x_test, y_test)
+print("Test set accuracy: {0}.".format(test_accuracy_score))
