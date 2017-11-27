@@ -58,6 +58,7 @@ def train(inputs, logits, x_train_and_cv, y_train_and_cv, temperature, mini_batc
     sess = tf.Session()
     sess.run(tf.global_variables_initializer())
     train_data = list(zip(x_train, y_train))
+    accuracy_score = None
     for epoch in range(epochs):
         random.shuffle(train_data)
         x_train, y_train = zip(*train_data)
