@@ -7,3 +7,8 @@ Test set accuracy: 0.8896999955177307.
 
 Optimal temperature found: 0.0002.
 Test set accuracy: 0.9557999968528748.
+
+800-neuron hidden layer:
+
+Optimal temperature found: 0.0002.
+Test set accuracy: 0.9757999777793884.
