@@ -34,11 +34,11 @@ def dense_fnn(inputs, hidden_layer_sizes):
     return logits
 
 def convnn(inputs):
-    conv_layer_1 = tf.layers.conv2d(tf.reshape(inputs, [-1, 28, 28, 1]), 40, 5, strides=(1, 1), padding="valid", activation=tf.nn.relu, bias_initializer=tf.constant_initializer(0.1))
+    conv_layer_1 = tf.layers.conv2d(tf.reshape(inputs, [-1, 28, 28, 1]), 40, 5, strides=(1, 1), padding="same", activation=tf.nn.relu, bias_initializer=tf.constant_initializer(0.1))
     pool_layer_1 = tf.layers.max_pooling2d(conv_layer_1, 2, 2)
-    conv_layer_2 = tf.layers.conv2d(pool_layer_1, 80, 3, strides=(1, 1), padding="valid", activation=tf.nn.relu, bias_initializer=tf.constant_initializer(0.1))
+    conv_layer_2 = tf.layers.conv2d(pool_layer_1, 80, 3, strides=(1, 1), padding="same", activation=tf.nn.relu, bias_initializer=tf.constant_initializer(0.1))
     pool_layer_2 = tf.layers.max_pooling2d(conv_layer_2, 2, 2)
-    dense_layer_1 = tf.layers.dense(tf.reshape(pool_layer_1, [-1, 5760]), 100, activation=tf.nn.sigmoid)
+    dense_layer_1 = tf.layers.dense(tf.reshape(pool_layer_2, [-1, 7 * 7 * 80]), 1000, activation=tf.nn.sigmoid)
     logits = tf.layers.dense(dense_layer_1, 10, activation=None)
     return logits
 
