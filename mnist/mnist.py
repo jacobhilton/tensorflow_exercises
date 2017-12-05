@@ -1,13 +1,7 @@
 import tensorflow as tf
 import random
 
-def image_to_vector(image):
-    return [pixel for row in image for pixel in row]
-
-def label_to_vector(label):
-    return [int(label == label_number) for label_number in range(10)]
-
-def read_image_vectors(filename, number=None, start=0):
+def read_images(filename, number=None, start=0):
     with open(filename, "rb") as file:
         file.seek(16 + start * 28 * 28)
         if number is None:
@@ -15,22 +9,20 @@ def read_image_vectors(filename, number=None, start=0):
         else:
             bytes = file.read(number * 28 * 28)
     pixels = list(bytes)
-    images = [[pixels[image_number + row_number * 28:image_number + row_number * 28 + 28] for row_number in range(28)] for image_number in range(0, len(pixels), 28 * 28)]
-    return list(map(lambda image: image_to_vector(image), images))
+    return [[pixels[image_number + row_number * 28:image_number + row_number * 28 + 28] for row_number in range(28)] for image_number in range(0, len(pixels), 28 * 28)]
 
-def read_label_vectors(filename, number=None, start=0):
+def read_labels(filename, number=None, start=0):
     with open(filename, "rb") as file:
         file.seek(8 + start)
         if number is None:
             bytes = file.read()
         else:
             bytes = file.read(number)
-    labels = list(bytes)
-    return list(map(lambda label: label_to_vector(label), labels))
+    return list(bytes)
 
 def dense_fnn(inputs, hidden_layer_sizes):
     hidden_layer_sizes.append(10)
-    prev_layer = inputs
+    prev_layer = tf.reshape(inputs, [-1, 28 * 28])
     prev_layer_size = 28 * 28
     for layer_number in range(len(hidden_layer_sizes)):
         layer_size = hidden_layer_sizes[layer_number]
@@ -39,6 +31,15 @@ def dense_fnn(inputs, hidden_layer_sizes):
         logits = tf.matmul(prev_layer, weight_variable) + bias_variable
         prev_layer = tf.sigmoid(logits)
         prev_layer_size = layer_size
+    return logits
+
+def convnn(inputs):
+    conv_layer_1 = tf.layers.conv2d(tf.reshape(inputs, [-1, 28, 28, 1]), 40, 5, strides=(1, 1), padding="valid", activation=tf.nn.relu, bias_initializer=tf.constant_initializer(0.1))
+    pool_layer_1 = tf.layers.max_pooling2d(conv_layer_1, 2, 2)
+    conv_layer_2 = tf.layers.conv2d(pool_layer_1, 80, 3, strides=(1, 1), padding="valid", activation=tf.nn.relu, bias_initializer=tf.constant_initializer(0.1))
+    pool_layer_2 = tf.layers.max_pooling2d(conv_layer_2, 2, 2)
+    dense_layer_1 = tf.layers.dense(tf.reshape(pool_layer_1, [-1, 5760]), 100, activation=tf.nn.sigmoid)
+    logits = tf.layers.dense(dense_layer_1, 10, activation=None)
     return logits
 
 def train(inputs, logits, x_train_and_cv, y_train_and_cv, temperature, mini_batch_size=1000, cross_validation_set_size=10000, epochs=50):
@@ -51,9 +52,9 @@ def train(inputs, logits, x_train_and_cv, y_train_and_cv, temperature, mini_batc
         y_train = y_train_and_cv[:-cross_validation_set_size]
         x_cv = x_train_and_cv[-cross_validation_set_size:]
         y_cv = y_train_and_cv[-cross_validation_set_size:]
-    labels = tf.placeholder(tf.float32, shape=(None, 10))
-    loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=labels, logits=logits))
-    accuracy = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(labels, axis=1), tf.argmax(logits, axis=1)), dtype=tf.float32))
+    labels = tf.placeholder(tf.int64)
+    loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=tf.one_hot(labels, 10), logits=logits))
+    accuracy = tf.reduce_mean(tf.cast(tf.equal(labels, tf.argmax(logits, axis=1)), dtype=tf.float32))
     training_step = tf.train.GradientDescentOptimizer(learning_rate).minimize(loss)
     sess = tf.Session()
     sess.run(tf.global_variables_initializer())
@@ -77,14 +78,20 @@ def optimize_temperature(inputs, logits, x_train_and_cv, y_train_and_cv):
         return accuracy_score
     return max(temperatures, key=accuracy_score_of_temperature)
 
-inputs = tf.placeholder(tf.float32, shape=(None, 28 * 28))
-logits = dense_fnn(inputs, hidden_layer_sizes=[100])
-x_train_and_cv = read_image_vectors("train-images-idx3-ubyte")
-y_train_and_cv = read_label_vectors("train-labels-idx1-ubyte")
+inputs = tf.placeholder(tf.float32, shape=(None, 28, 28))
+
+# Choose your model
+#logits = dense_fnn(inputs, hidden_layer_sizes=[])
+#logits = dense_fnn(inputs, hidden_layer_sizes=[100])
+#logits = dense_fnn(inputs, hidden_layer_sizes=[800])
+logits = convnn(inputs)
+
+x_train_and_cv = read_images("train-images-idx3-ubyte")
+y_train_and_cv = read_labels("train-labels-idx1-ubyte")
 temperature = optimize_temperature(inputs, logits, x_train_and_cv, y_train_and_cv)
 print("Optimal temperature found: {0}.".format(temperature))
 accuracy_evaluator, _ = train(inputs, logits, x_train_and_cv, y_train_and_cv, temperature, cross_validation_set_size=0)
-x_test = read_image_vectors("t10k-images-idx3-ubyte")
-y_test = read_label_vectors("t10k-labels-idx1-ubyte")
+x_test = read_images("t10k-images-idx3-ubyte")
+y_test = read_labels("t10k-labels-idx1-ubyte")
 test_accuracy_score = accuracy_evaluator(x_test, y_test)
 print("Test set accuracy: {0}.".format(test_accuracy_score))
