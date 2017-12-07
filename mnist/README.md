@@ -1,4 +1,4 @@
-Script to train and test a neural network on the MNIST dataset. Finds the optimal [temperature](https://blog.janestreet.com/does-batch-size-matter/) (i.e. learning rate / mini-batch size) using cross-validation, trains the neural network over 50 epochs and then tests the result.
+Python script to train and test a feed-forward neural network on the [MNIST](http://yann.lecun.com/exdb/mnist/) dataset. Finds the optimal [temperature](https://blog.janestreet.com/does-batch-size-matter/) (i.e. learning rate / mini-batch size) using cross-validation, trains the neural network over 50 epochs and then tests the result.
 
 There are 4 models to choose from:
 
