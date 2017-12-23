@@ -55,9 +55,9 @@ def generate(seed, output_length, alphabet_load_filename, ckpt_load_filename):
     sess = tf.Session()
     tf.train.Saver().restore(sess, os.getcwd() + "/" + ckpt_load_filename)
     while len(sequence) < output_length:
-        truncated_sequence = sequence[:-sequence_length-1]
+        truncated_sequence = sequence[-sequence_length-1:]
         input_sequence = truncated_sequence + [0 for _ in range(sequence_length - len(truncated_sequence))]
-        sequence.append(sess.run(tf.squeeze(tf.argmax(logits[:, len(truncated_sequence), :], axis=1)), {sequences_placeholder: [input_sequence]}))
+        sequence.append(sess.run(tf.squeeze(tf.argmax(logits[:, len(truncated_sequence) - 1, :], axis=1)), {sequences_placeholder: [input_sequence]}))
         #temperature
     return "".join([alphabet[character] for character in sequence])
 
