@@ -1,4 +1,4 @@
-Python scripts to train a recurrent neural network on a corpus of text and generate new text based on the result. It uses using a character-level model and a stacked LSTM, with hyperparameters borrowed from [this](https://github.com/LaurentMazare/tensorflow-ocaml/tree/master/examples/char_rnn) implementation.
+Python scripts to train a recurrent neural network on a corpus of text and generate new text based on the result. It uses a character-level model and a stacked LSTM, with hyperparameters borrowed from [this](https://github.com/LaurentMazare/tensorflow-ocaml/tree/master/examples/char_rnn) implementation.
 
 It can be trained on `corpus.txt` using:
 
