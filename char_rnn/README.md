@@ -6,7 +6,9 @@ It can be trained on `corpus.txt` using:
 python3 train.py corpus.txt
 ```
 
-This will create `corpus.txt.alphabet.txt` and some `corpus.txt.ckpt*` files. A 10KB (say) piece of text beginning with `$SEED` can then be generated using:
+This will create `corpus.txt.alphabet.txt` and some `corpus.txt.ckpt*` files.
+
+A 10KB (say) piece of text beginning with `$SEED` can then be generated using:
 
 ```
 python3 generate.py corpus.txt "$SEED" 10000

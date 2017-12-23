@@ -11,7 +11,7 @@ epochs = 100
 
 maximum_seed_length = 180
 generating_sequence_length = 2400
-temperature = 0#0.5
+temperature = 0.5
 
 def basic_lstm_cell():
     return tf.contrib.rnn.BasicLSTMCell(lstm_size)
