@@ -11,7 +11,7 @@ epochs = 100
 
 maximum_seed_length = 180
 generating_sequence_length = 2400
-temperature = 0.5
+temperature = 0#0.5
 
 def basic_lstm_cell():
     return tf.contrib.rnn.BasicLSTMCell(lstm_size)
@@ -77,9 +77,12 @@ def generate(seed, total_length, alphabet_load_filename, ckpt_load_filename):
         outputs = []
         for _ in range(min(total_length - len(total_sequence), generating_sequence_length)):
             logits, state = network(input, state, len(alphabet), 1)
-            probabilities = tf.nn.softmax(tf.scalar_mul(1 / temperature, logits))
-            cumulative_probabilities = tf.cumsum(probabilities, axis=2, exclusive=True)
-            output = tf.argmax(tf.multiply(cumulative_probabilities, tf.cast(tf.less(cumulative_probabilities, tf.random_uniform([1], minval=0, maxval=1)), dtype=tf.float32)), axis=2)
+            if temperature == 0:
+                output = tf.argmax(logits, axis=2)
+            else:
+                probabilities = tf.nn.softmax(tf.scalar_mul(1 / temperature, logits))
+                cumulative_probabilities = tf.cumsum(probabilities, axis=2, exclusive=True)
+                output = tf.argmax(tf.multiply(cumulative_probabilities, tf.cast(tf.less(cumulative_probabilities, tf.random_uniform([1], minval=0, maxval=1)), dtype=tf.float32)), axis=2)
             outputs.append(tf.squeeze(output))
             input = output
         if restore:
