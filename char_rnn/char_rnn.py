@@ -9,7 +9,6 @@ lstm_layers = 2
 learning_rate = 0.004
 epochs = 100
 
-maximum_seed_length = 180
 generating_sequence_length = 900
 temperature = 0.5
 
@@ -22,6 +21,23 @@ def network(inputs, multi_lstm_state, alphabet_length, sequence_length):
     multi_lstm_inputs = tf.unstack(tf.one_hot(inputs, alphabet_length), num=sequence_length, axis=1)
     multi_lstm_outputs, multi_lstm_state = tf.contrib.rnn.static_rnn(multi_lstm_cell, multi_lstm_inputs, initial_state=multi_lstm_state, dtype=tf.float32)
     return tf.layers.dense(tf.stack(multi_lstm_outputs, axis=1), alphabet_length, reuse=tf.AUTO_REUSE), multi_lstm_state
+
+def generating_network(last_character_input, state_input, alphabet_length, sequence_length):
+    input = tf.expand_dims(tf.expand_dims(last_character_input, 0), 1)
+    state = state_input
+    outputs = []
+    for _ in range(sequence_length):
+        logits, state = network(input, state, alphabet_length, 1)
+        if temperature == 0:
+            output = tf.argmax(logits, axis=2)
+        else:
+            probabilities = tf.nn.softmax(tf.scalar_mul(1 / temperature, logits))
+            cumulative_probabilities = tf.cumsum(probabilities, axis=2, exclusive=True)
+            indices = tf.cumsum(tf.ones(tf.shape(probabilities), dtype=tf.float32), axis=2)
+            output = tf.argmax(tf.multiply(indices, tf.cast(tf.less(cumulative_probabilities, tf.random_uniform([1], minval=0, maxval=1)), dtype=tf.float32)), axis=2)
+        outputs.append(tf.squeeze(output))
+        input = output
+    return tf.squeeze(output), state, tf.stack(outputs, axis=0)
 
 def train(corpus_filename, alphabet_save_filename, ckpt_save_filename):
     with open(corpus_filename, "r") as file:
@@ -60,38 +76,27 @@ def generate(seed, total_length, alphabet_load_filename, ckpt_load_filename):
     with open(alphabet_load_filename, "r") as file:
         alphabet = file.read()
     seed_characters = [alphabet.find(letter) for letter in seed]
-    if -1 in seed_characters[-maximum_seed_length:]:
+    if -1 in seed_characters:
         raise RuntimeError("Seed contains a letter not found in the corpus")
+    last_character = seed_characters[-1]
+    seed_without_last_character_placeholder = tf.placeholder(tf.int64, [None])
+    _, initial_state = network(tf.expand_dims(seed_without_last_character_placeholder, 0), None, len(alphabet), len(seed) - 1)
     sess = tf.Session()
+    tf.train.Saver().restore(sess, os.getcwd() + "/" + ckpt_load_filename)
+    if len(seed) == 1:
+        state = None
+    else:
+        state = sess.run(initial_state, {seed_without_last_character_placeholder: seed_characters[:-1]})
     print(seed, end="", flush=True)
-    restore = True
     total_sequence = seed_characters
     while len(total_sequence) < total_length:
-        truncated_seed = total_sequence[-maximum_seed_length:]
-        seed_placeholder = tf.placeholder(tf.int64, [None])
-        if len(truncated_seed) == 1:
-            state = None
-        else:
-            _, state = network(tf.expand_dims(seed_placeholder[:-1], 0), None, len(alphabet), len(truncated_seed) - 1)
-        input = tf.expand_dims(seed_placeholder[-1:], 0)
-        outputs = []
-        for _ in range(min(total_length - len(total_sequence), generating_sequence_length)):
-            logits, state = network(input, state, len(alphabet), 1)
-            if temperature == 0:
-                output = tf.argmax(logits, axis=2)
-            else:
-                probabilities = tf.nn.softmax(tf.scalar_mul(1 / temperature, logits))
-                cumulative_probabilities = tf.cumsum(probabilities, axis=2, exclusive=True)
-                indices = tf.cumsum(tf.ones(tf.shape(probabilities), dtype=tf.float32), axis=2)
-                output = tf.argmax(tf.multiply(indices, tf.cast(tf.less(cumulative_probabilities, tf.random_uniform([1], minval=0, maxval=1)), dtype=tf.float32)), axis=2)
-            outputs.append(tf.squeeze(output))
-            input = output
-        if restore:
-            restore = False
-            tf.train.Saver().restore(sess, os.getcwd() + "/" + ckpt_load_filename)
-        new_characters = list(sess.run(tf.stack(outputs, axis=0), {seed_placeholder: truncated_seed}))
-        new_letters = decode(new_characters, alphabet)
-        print(new_letters, end="", flush=True)
+        last_character_input_placeholder = tf.placeholder(tf.int64, [])
+        last_character_output, state_output, character_outputs = generating_network(last_character_input_placeholder, state, len(alphabet), min(total_length - len(total_sequence), generating_sequence_length))
+        output = sess.run({"last_character_output": last_character_output, "state_output": state_output, "character_outputs": character_outputs}, {last_character_input_placeholder: last_character})
+        last_character = output["last_character_output"]
+        state = output["state_output"]
+        new_characters = list(output["character_outputs"])
+        print(decode(new_characters, alphabet), end="", flush=True)
         total_sequence += new_characters
     print("", flush=True)
     return decode(total_sequence, alphabet)
