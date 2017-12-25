@@ -10,7 +10,7 @@ learning_rate = 0.004
 epochs = 100
 
 maximum_seed_length = 180
-generating_sequence_length = 2400
+generating_sequence_length = 900
 temperature = 0.5
 
 def basic_lstm_cell():
@@ -82,7 +82,8 @@ def generate(seed, total_length, alphabet_load_filename, ckpt_load_filename):
             else:
                 probabilities = tf.nn.softmax(tf.scalar_mul(1 / temperature, logits))
                 cumulative_probabilities = tf.cumsum(probabilities, axis=2, exclusive=True)
-                output = tf.argmax(tf.multiply(cumulative_probabilities, tf.cast(tf.less(cumulative_probabilities, tf.random_uniform([1], minval=0, maxval=1)), dtype=tf.float32)), axis=2)
+                indices = tf.cumsum(tf.ones(tf.shape(probabilities), dtype=tf.float32), axis=2)
+                output = tf.argmax(tf.multiply(indices, tf.cast(tf.less(cumulative_probabilities, tf.random_uniform([1], minval=0, maxval=1)), dtype=tf.float32)), axis=2)
             outputs.append(tf.squeeze(output))
             input = output
         if restore:
