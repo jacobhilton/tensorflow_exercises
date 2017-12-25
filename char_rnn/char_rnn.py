@@ -10,7 +10,7 @@ learning_rate = 0.004
 epochs = 100
 
 generating_sequence_length = 900
-temperature = 0.5
+temperature = 0.1
 
 def basic_lstm_cell():
     return tf.contrib.rnn.BasicLSTMCell(lstm_size)
