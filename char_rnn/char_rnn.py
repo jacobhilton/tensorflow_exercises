@@ -10,7 +10,7 @@ learning_rate = 0.004
 epochs = 100
 
 generating_sequence_length = 900
-temperature = 0.1
+temperature = 0.5
 
 def basic_lstm_cell():
     return tf.contrib.rnn.BasicLSTMCell(lstm_size)
@@ -66,6 +66,7 @@ def train(corpus_filename, alphabet_save_filename, ckpt_save_filename):
             total_loss += sess.run(loss, {sequences_placeholder: batch})
         print("Loss after {0} epoch(s): {1}".format(epoch + 1, total_loss / number_of_batches), flush=True)
     tf.train.Saver().save(sess, os.getcwd() + "/" + ckpt_save_filename)
+    sess.close()
 
 def decode(sequence, alphabet):
     return "".join([alphabet[character] for character in sequence])
@@ -79,20 +80,22 @@ def generate(seed, total_length, alphabet_load_filename, ckpt_load_filename):
     if -1 in seed_characters:
         raise RuntimeError("Seed contains a letter not found in the corpus")
     last_character = seed_characters[-1]
-    seed_without_last_character_placeholder = tf.placeholder(tf.int64, [None])
-    _, initial_state = network(tf.expand_dims(seed_without_last_character_placeholder, 0), None, len(alphabet), len(seed) - 1)
-    sess = tf.Session()
-    tf.train.Saver().restore(sess, os.getcwd() + "/" + ckpt_load_filename)
     if len(seed) == 1:
         state = None
     else:
-        state = sess.run(initial_state, {seed_without_last_character_placeholder: seed_characters[:-1]})
+        with tf.Session() as sess:
+            seed_without_last_character_placeholder = tf.placeholder(tf.int64, [None])
+            _, initial_state = network(tf.expand_dims(seed_without_last_character_placeholder, 0), None, len(alphabet), len(seed) - 1)
+            tf.train.Saver().restore(sess, os.getcwd() + "/" + ckpt_load_filename)
+            state = sess.run(initial_state, {seed_without_last_character_placeholder: seed_characters[:-1]})
     print(seed, end="", flush=True)
     total_sequence = seed_characters
     while len(total_sequence) < total_length:
-        last_character_input_placeholder = tf.placeholder(tf.int64, [])
-        last_character_output, state_output, character_outputs = generating_network(last_character_input_placeholder, state, len(alphabet), min(total_length - len(total_sequence), generating_sequence_length))
-        output = sess.run({"last_character_output": last_character_output, "state_output": state_output, "character_outputs": character_outputs}, {last_character_input_placeholder: last_character})
+        with tf.Session() as sess:
+            last_character_input_placeholder = tf.placeholder(tf.int64, [])
+            last_character_output, state_output, character_outputs = generating_network(last_character_input_placeholder, state, len(alphabet), min(total_length - len(total_sequence), generating_sequence_length))
+            tf.train.Saver().restore(sess, os.getcwd() + "/" + ckpt_load_filename)
+            output = sess.run({"last_character_output": last_character_output, "state_output": state_output, "character_outputs": character_outputs}, {last_character_input_placeholder: last_character})
         last_character = output["last_character_output"]
         state = output["state_output"]
         new_characters = list(output["character_outputs"])
