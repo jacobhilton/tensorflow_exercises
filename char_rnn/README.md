@@ -1,6 +1,14 @@
-Python scripts to train a recurrent neural network on a corpus of text and generate new text based on the result. It uses a character-level model and a stacked LSTM, as described in [this blog post](http://karpathy.github.io/2015/05/21/rnn-effectiveness/). The default hyperparameters are borrowed from [this implementation](https://github.com/LaurentMazare/tensorflow-ocaml/tree/master/examples/char_rnn).
+Python scripts to train a recurrent neural network on a corpus of text and generate new text based on the result.
 
-It can be trained on `corpus.txt` using:
+A character-level language model is used: the network takes a sequence of characters as input, and outputs a probability distribution for the next character in the sequence. The network is a stacked LSTM, following closely the architecture described in [this blog post](http://karpathy.github.io/2015/05/21/rnn-effectiveness/).
+
+The default hyperparameters are borrowed from [this implementation](https://github.com/LaurentMazare/tensorflow-ocaml/tree/master/examples/char_rnn).
+
+## Usage
+
+The scripts require [TensorFlow](https://www.tensorflow.org/install/) to be installed.
+
+A network can be trained on `corpus.txt` using:
 
 ```
 python3 train.py corpus.txt
@@ -14,7 +22,11 @@ A 10KB (say) piece of text beginning with `$SEED` can then be generated using:
 python3 generate.py corpus.txt "$SEED" 10000
 ```
 
-The "temperature" parameter specifies how much randomness to use when generating text. Here is a sample of some text generated using a temperature of 0.2 after having been trained on the LaTeX source of my PhD thesis:
+When generating text, you may wish to play around with the "temperature" parameter, which specifies how much randomness to use.
+
+## Example
+
+Here is a sample of some text generated using a temperature of 0.2 after having been trained on the LaTeX source of my PhD thesis:
 
 
 ```
@@ -68,6 +80,6 @@ Let $k\in\omega$ and let $\beta$ be any ordinal $\beta$. The closed partition re
 \end{lemma}
 ```
 
-After some minor editing, this compiles to something that looks like this:
+After some light editing, this compiles to something that looks like this:
 
-![Compiled LaTeX](thesis.png)
+<img src="char_rnn/thesis.png" width="666">
