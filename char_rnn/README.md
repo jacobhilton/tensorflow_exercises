@@ -82,4 +82,4 @@ Let $k\in\omega$ and let $\beta$ be any ordinal $\beta$. The closed partition re
 
 After some light editing, this compiles to something that looks like this:
 
-<img src="char_rnn/thesis.png" width="666">
+<img src="thesis.png" width="666">
